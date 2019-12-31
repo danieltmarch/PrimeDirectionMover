@@ -13,10 +13,10 @@ namespace PrimeDirectionMover
 {
     public partial class Form1 : Form
     {
-        int moveDistance = 2;
-        Prime prime;
-        Image image;
-        int iterCount = 1000; //default value of 1000
+        int moveDistance = 2; //how many pixels the coordinates move when the number is a prime.
+        Prime prime; //handles generating the prime list.
+        Image image; //handles creating the image (Bitmap)
+        int iterCount = 1000; //default value of 1000 (the max number we go up to)
 
         public Form1()
         {
@@ -95,11 +95,12 @@ namespace PrimeDirectionMover
                     }
                 }
             }
+            //create the image with the proper size
             int sizeX = max[0] - min[0] + 1; //+1 because the 0,0 coord
             int sizeY = max[1] - min[1] + 1; //+1 because the 0,0 coord
             image = new Image(sizeX, sizeY);
             int[] originCoord = { -min[0], -min[1] };
-            return originCoord;
+            return originCoord; //passed to the main operation function so it knows where to place the first point.
         }
 
         //create the actual prime direction mover image. Box size is the size of the pictureBox.
@@ -122,14 +123,14 @@ namespace PrimeDirectionMover
                     timer.Reset(); //restart the timer
                     timer.Start();
                 }
-                if (i != primeNumber)
+                if (i == primeNumber)
                 {
                     //find the next coordinate based on the direciton
                     previousCoord[0] = currentCoord[0];
                     previousCoord[1] = currentCoord[1];
                     currentCoord[0] = currentCoord[0] + coord[0];
                     currentCoord[1] = currentCoord[1] + coord[1];
-                    image.drawStraightLine(previousCoord, currentCoord, image.getColorFromHSV((double)i / iterCount)); //draw a line from the old coord to the new one
+                    image.drawStraightLine(previousCoord, currentCoord, image.getColorFromHSV((double)i / iterCount) ); //draw a line from the old coord to the new one
 
                     primeNumber = prime.nextPrime(); //get the next prime
                     if (primeNumber == -1) //if the prime is -1, there must be no more prime numbers
@@ -165,7 +166,7 @@ namespace PrimeDirectionMover
         }
 
 
-        //have the background worker make the image
+        //have the background worker make the image, this button is only available when the background worker is finished.
         private void RunButton_Click(object sender, EventArgs e)
         {
             runButton.Enabled = false; //disable the buttons to avoid errors.
@@ -182,7 +183,7 @@ namespace PrimeDirectionMover
 
             backgroundWorker1.ReportProgress(0, "Generating Primes...");
 
-            //Generate the prime numbers
+            //Generate the prime number array
             prime = new Prime(iterCount);
 
             int notificationTimer = 1000; //how often the backgroundworker notifies the main thread of its progress.
@@ -192,7 +193,7 @@ namespace PrimeDirectionMover
             {
                 if (timer.ElapsedMilliseconds > notificationTimer) //if the timer has expired, send notifications to the main thread
                 {
-                    backgroundWorker1.ReportProgress(50, prime.getGenerationProgress() );
+                    backgroundWorker1.ReportProgress(50, prime.getGenerationProgress() ); //update the progress bar.
                     timer.Reset(); //reset the timer.
                     timer.Start();
                 }
@@ -200,12 +201,12 @@ namespace PrimeDirectionMover
             //END Generate the prime numbers
 
             backgroundWorker1.ReportProgress(50, "Prework...");
-            int[] coordOrigin = preSetup();
+            int[] coordOrigin = preSetup(); //the setup phase of the image generation
 
             backgroundWorker1.ReportProgress(75, "Generating Image...");
-            mainOperations(coordOrigin, (int[])(e.Argument) );
+            mainOperations(coordOrigin, (int[])(e.Argument) ); //generate the image.
 
-            backgroundWorker1.ReportProgress(100, "");
+            backgroundWorker1.ReportProgress(100, ""); //notify the main thread that we finished the background work.
         }
 
         //when the iterCountText box is changed, we try to parse the text to the iterCount var (int type)
@@ -229,7 +230,7 @@ namespace PrimeDirectionMover
 
         private void BackgroundWorker1_ProgressChanged(object sender, ProgressChangedEventArgs e)
         {
-            if(e.ProgressPercentage == 100)
+            if(e.ProgressPercentage == 100) //the background worker has finished its work
             {
                 runButton.Enabled  = true; //we finished the work, the run button can be re-enabled.
                 saveButton.Enabled = true;
@@ -251,7 +252,7 @@ namespace PrimeDirectionMover
             }
         }
 
-
+        //save the image file as either a jpg or png, saves as the original image resolution found in preSetup(), this option is only available after the image is finished generating.
         private void SaveButton_Click(object sender, EventArgs e)
         {
             SaveFileDialog saver = new SaveFileDialog();
@@ -259,8 +260,7 @@ namespace PrimeDirectionMover
 
             if ( saver.ShowDialog() == DialogResult.OK )
             {
-                Clipboard.SetText( saver.FileName );
-                image.requestOriginalImage().Save( saver.FileName );
+                image.requestOriginalImage().Save( saver.FileName ); //save the file in the path and type the user selected
             }
         }
     }
@@ -278,7 +278,7 @@ namespace PrimeDirectionMover
             maxNum = maxNumber;
         }
 
-        //make the array of primes from 0 - maxNum, this takes many runs of this function to complete, returns false when the generation is fully done.
+        //make the array of primes from [2 - maxNum], this takes many runs of this function to complete, returns false when the generation is fully done.
         public bool generatePrime()
         {
             bool prime = true; //assume prime until proven otherwise.
@@ -383,77 +383,80 @@ namespace PrimeDirectionMover
             return picture;
         }
 
-        //draw a line with the requested color from the startCoord to endCoord;
+        //draw a line with the requested color from the startCoord to endCoord; This line must be either horizontal or vertical.
         public void drawStraightLine(int[] startCoord, int[] endCoord, Color color)
         {
             if (startCoord[0] == endCoord[0]) //draw vertical line
             {
-                for (int i = 0; i <= Math.Abs(endCoord[1] - startCoord[1]); i++)
+                if (startCoord[1] < endCoord[1])
                 {
-                    if (endCoord[1] > startCoord[1])
-                    {
-                        picture.SetPixel(startCoord[0], startCoord[1] + i, color);
-                    }
-                    else
-                    {
-                        picture.SetPixel(startCoord[0], endCoord[1] + i, color);
-                    }
+                    drawLineVertical(startCoord[0], startCoord[1], endCoord[1], color);
+                }
+                else //the end coordinate is before the start Coord so switch them when drawing the line.
+                {
+                    drawLineVertical(startCoord[0], endCoord[1], startCoord[1], color);
                 }
             }
             else //draw horizontal line
             {
-                for (int i = 0; i <= Math.Abs(endCoord[0] - startCoord[0]); i++)
+                if (startCoord[0] < endCoord[0])
                 {
-                    if (endCoord[0] > startCoord[0])
-                    {
-                        picture.SetPixel(startCoord[0] + i, startCoord[1], color);
-                    }
-                    else
-                    {
-                        picture.SetPixel(endCoord[0] + i, startCoord[1], color);
-                    }
+                    drawLineHorizontal(startCoord[1], startCoord[0], endCoord[0], color);
+                }
+                else //the end coordinate is before the start Coord so switch them when drawing the line.
+                {
+                    drawLineHorizontal(startCoord[1], endCoord[0], startCoord[0], color);
                 }
             }
         }
 
-        //get an rgb color value from an Hue value when h is between 0-1, saturation and value is always 1, adapted from https://stackoverflow.com/questions/2941048/how-to-simplify-fractions-in-c
+        //draw a line from beginY to endY when x is constant, beginY < endY
+        private void drawLineVertical(int x, int beginY, int endY, Color color)
+        {
+            for (int i = 0; i <= endY-beginY; i++)
+            {
+                picture.SetPixel(x, beginY + i, color);
+            }
+        }
+
+        //draw a line from beginX to endX when y is constant, beginX < endX
+        private void drawLineHorizontal(int y, int beginX, int endX, Color color)
+        {
+            for (int i = 0; i <= endX - beginX; i++)
+            {
+                picture.SetPixel(beginX + i, y, color);
+            }
+        }
+
+
+        //get an rgb color value from an Hue value when h is between 0-1, saturation and value is maxed out. Essentially this makes rainbow colors.
         public Color getColorFromHSV(double hue)
         {
-            double saturation = 1;
-            double value = 1;
+            const double saturation = 1; //saturation is always 1
+            const double value = 255; //value is always max.
+
             int hueCase = Convert.ToInt32(Math.Floor(hue * 6)) % 6; //different hue cases, 6 different cases.
             double f = hue * 6 - Math.Floor(hue * 6); //f is the floating point remainder of hue*6.
 
-            value = value * 255;
             int v = Convert.ToInt32(value);
             int p = Convert.ToInt32(value * (1 - saturation));
             int q = Convert.ToInt32(value * (1 - f * saturation));
             int t = Convert.ToInt32(value * (1 - (1 - f) * saturation));
 
-            if (hueCase == 0)
+            switch (hueCase) //return the correct color depending on the hue case.
             {
-
-                return Color.FromArgb(255, v, t, p);
-            }
-            else if (hueCase == 1)
-            {
-                return Color.FromArgb(255, q, v, p);
-            }
-            else if (hueCase == 2)
-            {
-                return Color.FromArgb(255, p, v, t);
-            }
-            else if (hueCase == 3)
-            {
-                return Color.FromArgb(255, p, q, v);
-            }
-            else if (hueCase == 4)
-            {
-                return Color.FromArgb(255, t, p, v);
-            }
-            else //hueCase == 5.
-            {
-                return Color.FromArgb(255, v, p, q);
+                case 0:
+                    return Color.FromArgb(255, v, t, p);
+                case 1:
+                    return Color.FromArgb(255, q, v, p);
+                case 2:
+                    return Color.FromArgb(255, p, v, t);
+                case 3:
+                    return Color.FromArgb(255, p, q, v);
+                case 4:
+                    return Color.FromArgb(255, t, p, v);
+                default: //case 5
+                    return Color.FromArgb(255, v, p, q);
             }
         }
     }
